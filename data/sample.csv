@@ -1,0 +1,16 @@
+customer_id,name,email,mobile,city,segment
+C001,John Doe,john.doe@example.com,9876543210,Chennai,Premium
+C002,Alice Smith,alice.smith@techcorp.io,9123456789,Bangalore,Enterprise
+C003,Bob Johnson,bob.j@cloudnet.org,9845123456,Mumbai,Standard
+C004,Elena Gilbert,elena.g@mysticfalls.edu,9789012345,Hyderabad,Premium
+C005,Carlos Santana,carlos.s@guitarsolo.com,9988776655,Delhi,Enterprise
+C006,Mei Ling,mei.ling@orientholdings.cn,9871234560,Kolkata,Standard
+C007,David Miller,david.m@apexlogistics.com,9765432109,Pune,Standard
+C008,Sarah Connor,sarah.c@cyberdyne.net,9654321098,Austin,Enterprise
+C009,Vikram Patel,vikram.p@indusfin.in,9543210987,Ahmedabad,Premium
+C010,Kavita Nair,kavita.n@keralaspices.org,9432109876,Kochi,Standard
+C011,Marcus Aurelius,marcus.a@stoicphilosophy.gr,9321098765,Rome,Premium
+C012,Fatima Zahra,fatima.z@oasisventures.ae,9210987654,Dubai,Enterprise
+C013,Hiroshi Tanaka,hiroshi.t@tokyotech.jp,9109876543,Tokyo,Standard
+C014,Chloe Decker,chloe.d@lapd-precinct.gov,9098765432,Los Angeles,Premium
+C015,Ravi Shankar,ravi.s@musicclassical.in,9898989898,Varanasi,Standard
