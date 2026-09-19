@@ -88,84 +88,129 @@ def init_all_databases():
 
 
 # ============================================================
-# DEFAULT ADMIN INITIALIZATION
+# DEFAULT DEMONSTRATION USERS INITIALIZATION
 # ============================================================
 
-def ensure_admin_user():
+def ensure_demo_users():
     """
-    Ensure the default administrator account exists.
+    Ensure all default demonstration accounts exist.
 
-    Username: admin
-    Password: admin
-    Role: ADMIN
+    Accounts:
+
+        admin
+        Password: admin
+        Role: ADMIN
+
+        marketing
+        Password: marketing
+        Role: MARKETING
+
+        support
+        Password: support
+        Role: CUSTOMER_SUPPORT
+
+        auditor
+        Password: auditor
+        Role: AUDITOR
     """
+
+    demo_users = [
+        {
+            "username": "admin",
+            "email": "admin@flyyy.ai",
+            "password": "admin",
+            "role": "ADMIN",
+        },
+        {
+            "username": "marketing",
+            "email": "marketing@flyyy.ai",
+            "password": "marketing",
+            "role": "MARKETING",
+        },
+        {
+            "username": "support",
+            "email": "support@flyyy.ai",
+            "password": "support",
+            "role": "CUSTOMER_SUPPORT",
+        },
+        {
+            "username": "auditor",
+            "email": "auditor@flyyy.ai",
+            "password": "auditor",
+            "role": "AUDITOR",
+        },
+    ]
 
     db = PolicySessionLocal()
 
     try:
-        admin = (
-            db.query(User)
-            .filter(
-                User.username == "admin"
+
+        for user_data in demo_users:
+
+            user = (
+                db.query(User)
+                .filter(
+                    User.username == user_data["username"]
+                )
+                .first()
             )
-            .first()
+
+            # ------------------------------------------------
+            # CREATE USER IF NOT EXISTS
+            # ------------------------------------------------
+
+            if user is None:
+
+                user = User(
+                    username=user_data["username"],
+                    email=user_data["email"],
+                    hashed_password=hash_password(
+                        user_data["password"]
+                    ),
+                    role=user_data["role"],
+                    is_active=True,
+                )
+
+                db.add(user)
+
+                print(
+                    "DEFAULT USER CREATED:",
+                    user_data["username"]
+                )
+
+            # ------------------------------------------------
+            # UPDATE EXISTING USER
+            # ------------------------------------------------
+
+            else:
+
+                user.email = user_data["email"]
+
+                user.hashed_password = hash_password(
+                    user_data["password"]
+                )
+
+                user.role = user_data["role"]
+
+                user.is_active = True
+
+                print(
+                    "DEFAULT USER UPDATED:",
+                    user_data["username"]
+                )
+
+        # Commit all four users together
+        db.commit()
+
+        print(
+            "========================================"
         )
-
-        # ----------------------------------------------------
-        # CREATE ADMIN IF IT DOES NOT EXIST
-        # ----------------------------------------------------
-
-        if admin is None:
-
-            admin = User(
-                username="admin",
-                email="admin@flyyy.ai",
-                hashed_password=hash_password("admin"),
-                role="ADMIN",
-                is_active=True,
-            )
-
-            db.add(admin)
-            db.commit()
-            db.refresh(admin)
-
-            print(
-                "========================================"
-            )
-            print(
-                "DEFAULT ADMIN CREATED SUCCESSFULLY"
-            )
-            print(
-                "========================================"
-            )
-
-        # ----------------------------------------------------
-        # UPDATE EXISTING ADMIN
-        # ----------------------------------------------------
-
-        else:
-
-            admin.email = "admin@flyyy.ai"
-
-            admin.hashed_password = hash_password(
-                "admin"
-            )
-
-            admin.role = "ADMIN"
-
-            admin.is_active = True
-
-            db.commit()
-
-            print(
-                "========================================"
-            )
-            print(
-                "DEFAULT ADMIN UPDATED SUCCESSFULLY"
-            )
-            print(
-                "========================================"
-            )
+        print(
+            "ALL DEMONSTRATION USERS INITIALIZED"
+        )
+        print(
+            "========================================"
+        )
 
     except Exception as exc:
 
@@ -175,7 +220,7 @@ def ensure_admin_user():
             "========================================"
         )
         print(
-            "ADMIN INITIALIZATION ERROR:"
+            "DEMO USER INITIALIZATION ERROR:"
         )
         print(
             repr(exc)
@@ -208,7 +253,10 @@ async def lifespan(app: FastAPI):
         "========================================"
     )
 
-    # Step 1: Create database tables
+    # --------------------------------------------------------
+    # STEP 1: CREATE DATABASE TABLES
+    # --------------------------------------------------------
+
     print(
         "Initializing databases..."
     )
@@ -219,15 +267,18 @@ async def lifespan(app: FastAPI):
         "Databases initialized successfully."
     )
 
-    # Step 2: Create/update admin
+    # --------------------------------------------------------
+    # STEP 2: CREATE / UPDATE ALL DEMO USERS
+    # --------------------------------------------------------
+
     print(
-        "Initializing admin account..."
+        "Initializing demonstration accounts..."
     )
 
-    ensure_admin_user()
+    ensure_demo_users()
 
     print(
-        "Admin initialization completed."
+        "Demonstration account initialization completed."
     )
 
     print(
