@@ -4,6 +4,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from passlib.context import CryptContext
+
 from app.config import settings
 from app.database.session import (
     source_engine,
@@ -11,6 +13,7 @@ from app.database.session import (
     vault_engine,
     policy_engine,
     audit_engine,
+    PolicySessionLocal,
 )
 
 # Ensure all models are imported so their metadata is registered
@@ -42,6 +45,20 @@ from app.api import (
 )
 
 
+# ============================================================
+# PASSWORD HASHING
+# ============================================================
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
+
+
+# ============================================================
+# DATABASE INITIALIZATION
+# ============================================================
+
 def init_all_databases():
     """Create all required tables across all 5 isolated database engines."""
 
@@ -59,11 +76,86 @@ def init_all_databases():
     AuditEvent.metadata.create_all(bind=audit_engine)
 
 
+# ============================================================
+# DEFAULT ADMIN INITIALIZATION
+# ============================================================
+
+def ensure_admin_user():
+    """
+    Ensure the default demo administrator account exists.
+
+    Login:
+        Username: admin
+        Password: admin
+    """
+
+    db = PolicySessionLocal()
+
+    try:
+        admin = (
+            db.query(User)
+            .filter(User.username == "admin")
+            .first()
+        )
+
+        # ----------------------------------------------------
+        # Create admin if it does not exist
+        # ----------------------------------------------------
+        if admin is None:
+
+            admin = User(
+                username="admin",
+                email="admin@flyyy.ai",
+                password_hash=pwd_context.hash("admin"),
+                role="ADMIN",
+                is_active=True,
+            )
+
+            db.add(admin)
+            db.commit()
+
+            print("DEFAULT ADMIN CREATED: admin")
+
+        else:
+            # ------------------------------------------------
+            # Make sure the demo admin account can log in
+            # ------------------------------------------------
+            admin.email = "admin@flyyy.ai"
+            admin.password_hash = pwd_context.hash("admin")
+            admin.role = "ADMIN"
+            admin.is_active = True
+
+            db.commit()
+
+            print("DEFAULT ADMIN VERIFIED/UPDATED: admin")
+
+    except Exception as exc:
+        db.rollback()
+        print("ADMIN INITIALIZATION ERROR:", str(exc))
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# APPLICATION LIFESPAN
+# ============================================================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
+    # First create all database tables
     init_all_databases()
+
+    # Then ensure admin account exists
+    ensure_admin_user()
+
     yield
 
+
+# ============================================================
+# FASTAPI APPLICATION
+# ============================================================
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
