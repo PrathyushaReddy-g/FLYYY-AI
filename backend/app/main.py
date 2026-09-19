@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 
+import bcrypt
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,7 +17,10 @@ from app.database.session import (
     PolicySessionLocal,
 )
 
-# Ensure all models are imported so their metadata is registered
+# ============================================================
+# IMPORT ALL MODELS
+# ============================================================
+
 from app.models import (
     SourceCustomer,
     ProtectedCustomer,
@@ -27,8 +32,9 @@ from app.models import (
     BounceRecord,
 )
 
-# Direct bcrypt hashing
-from app.security.auth import hash_password
+# ============================================================
+# IMPORT ALL API ROUTERS
+# ============================================================
 
 from app.api import (
     auth,
@@ -48,16 +54,41 @@ from app.api import (
 
 
 # ============================================================
+# DIRECT BCRYPT PASSWORD HASHING
+# ============================================================
+
+def hash_demo_password(password: str) -> str:
+    """
+    Hash demonstration passwords directly with bcrypt.
+
+    This intentionally does NOT use Passlib.
+    """
+
+    password_bytes = password.encode("utf-8")
+
+    hashed = bcrypt.hashpw(
+        password_bytes,
+        bcrypt.gensalt()
+    )
+
+    return hashed.decode("utf-8")
+
+
+# ============================================================
 # DATABASE INITIALIZATION
 # ============================================================
 
 def init_all_databases():
-    """Create all required tables across all database engines."""
+    """
+    Create all required tables across all database engines.
+    """
 
+    # SOURCE DATABASE
     SourceCustomer.metadata.create_all(
         bind=source_engine
     )
 
+    # PROTECTED DATABASE
     ProtectedCustomer.metadata.create_all(
         bind=protected_engine
     )
@@ -66,10 +97,12 @@ def init_all_databases():
         bind=protected_engine
     )
 
+    # VAULT DATABASE
     VaultEntry.metadata.create_all(
         bind=vault_engine
     )
 
+    # POLICY DATABASE
     ProtectionPolicy.metadata.create_all(
         bind=policy_engine
     )
@@ -82,89 +115,115 @@ def init_all_databases():
         bind=policy_engine
     )
 
+    # AUDIT DATABASE
     AuditEvent.metadata.create_all(
         bind=audit_engine
     )
 
 
 # ============================================================
-# DEFAULT DEMONSTRATION USERS INITIALIZATION
+# DEMONSTRATION ACCOUNTS
+# ============================================================
+
+DEMO_USERS = [
+    {
+        "username": "admin",
+        "email": "admin@flyyy.ai",
+        "password": "admin",
+        "role": "ADMIN",
+    },
+    {
+        "username": "marketing",
+        "email": "marketing@flyyy.ai",
+        "password": "marketing",
+        "role": "MARKETING",
+    },
+    {
+        "username": "support",
+        "email": "support@flyyy.ai",
+        "password": "support",
+        "role": "CUSTOMER_SUPPORT",
+    },
+    {
+        "username": "auditor",
+        "email": "auditor@flyyy.ai",
+        "password": "auditor",
+        "role": "AUDITOR",
+    },
+]
+
+
+# ============================================================
+# INITIALIZE ALL DEMONSTRATION USERS
 # ============================================================
 
 def ensure_demo_users():
     """
-    Ensure all default demonstration accounts exist.
+    Create or update all four demonstration accounts.
 
-    Accounts:
+    ADMIN:
+        username = admin
+        password = admin
+        role = ADMIN
 
-        admin
-        Password: admin
-        Role: ADMIN
+    MARKETING:
+        username = marketing
+        password = marketing
+        role = MARKETING
 
-        marketing
-        Password: marketing
-        Role: MARKETING
+    CUSTOMER SUPPORT:
+        username = support
+        password = support
+        role = CUSTOMER_SUPPORT
 
-        support
-        Password: support
-        Role: CUSTOMER_SUPPORT
-
-        auditor
-        Password: auditor
-        Role: AUDITOR
+    AUDITOR:
+        username = auditor
+        password = auditor
+        role = AUDITOR
     """
-
-    demo_users = [
-        {
-            "username": "admin",
-            "email": "admin@flyyy.ai",
-            "password": "admin",
-            "role": "ADMIN",
-        },
-        {
-            "username": "marketing",
-            "email": "marketing@flyyy.ai",
-            "password": "marketing",
-            "role": "MARKETING",
-        },
-        {
-            "username": "support",
-            "email": "support@flyyy.ai",
-            "password": "support",
-            "role": "CUSTOMER_SUPPORT",
-        },
-        {
-            "username": "auditor",
-            "email": "auditor@flyyy.ai",
-            "password": "auditor",
-            "role": "AUDITOR",
-        },
-    ]
 
     db = PolicySessionLocal()
 
     try:
 
-        for user_data in demo_users:
+        print("========================================")
+        print("INITIALIZING DEMONSTRATION ACCOUNTS")
+        print("========================================")
+
+        for user_data in DEMO_USERS:
+
+            username = user_data["username"]
+
+            print(
+                f"Checking demonstration account: {username}"
+            )
+
+            # ------------------------------------------------
+            # FIND USER BY USERNAME
+            # ------------------------------------------------
 
             user = (
                 db.query(User)
                 .filter(
-                    User.username == user_data["username"]
+                    User.username == username
                 )
                 .first()
             )
 
             # ------------------------------------------------
-            # CREATE USER IF NOT EXISTS
+            # CREATE USER
             # ------------------------------------------------
 
             if user is None:
 
+                print(
+                    f"Creating user: {username}"
+                )
+
                 user = User(
-                    username=user_data["username"],
+                    username=username,
                     email=user_data["email"],
-                    hashed_password=hash_password(
+                    hashed_password=hash_demo_password(
                         user_data["password"]
                     ),
                     role=user_data["role"],
@@ -173,61 +232,83 @@ def ensure_demo_users():
 
                 db.add(user)
 
-                print(
-                    "DEFAULT USER CREATED:",
-                    user_data["username"]
-                )
-
             # ------------------------------------------------
-            # UPDATE EXISTING USER
+            # UPDATE USER
             # ------------------------------------------------
 
             else:
 
+                print(
+                    f"Updating user: {username}"
+                )
+
                 user.email = user_data["email"]
 
-                user.hashed_password = hash_password(
-                    user_data["password"]
+                user.hashed_password = (
+                    hash_demo_password(
+                        user_data["password"]
+                    )
                 )
 
                 user.role = user_data["role"]
 
                 user.is_active = True
 
-                print(
-                    "DEFAULT USER UPDATED:",
-                    user_data["username"]
-                )
+        # ----------------------------------------------------
+        # COMMIT ALL FOUR ACCOUNTS
+        # ----------------------------------------------------
 
-        # Commit all four users together
         db.commit()
 
-        print(
-            "========================================"
-        )
-        print(
-            "ALL DEMONSTRATION USERS INITIALIZED"
-        )
-        print(
-            "========================================"
-        )
+        # ----------------------------------------------------
+        # VERIFY ALL FOUR USERS EXIST
+        # ----------------------------------------------------
+
+        print("========================================")
+        print("VERIFYING DEMONSTRATION ACCOUNTS")
+        print("========================================")
+
+        for user_data in DEMO_USERS:
+
+            username = user_data["username"]
+
+            user = (
+                db.query(User)
+                .filter(
+                    User.username == username
+                )
+                .first()
+            )
+
+            if user is None:
+                raise RuntimeError(
+                    f"Demo user was not created: {username}"
+                )
+
+            if not user.is_active:
+                raise RuntimeError(
+                    f"Demo user is inactive: {username}"
+                )
+
+            print(
+                f"READY: {username} "
+                f"| ROLE: {user.role} "
+                f"| ACTIVE: {user.is_active}"
+            )
+
+        print("========================================")
+        print("ALL 4 DEMONSTRATION USERS READY")
+        print("========================================")
 
     except Exception as exc:
 
         db.rollback()
 
-        print(
-            "========================================"
-        )
-        print(
-            "DEMO USER INITIALIZATION ERROR:"
-        )
-        print(
-            repr(exc)
-        )
-        print(
-            "========================================"
-        )
+        print("========================================")
+        print("DEMO USER INITIALIZATION ERROR")
+        print("========================================")
+        print(repr(exc))
+        print("========================================")
 
         raise
 
@@ -243,23 +324,15 @@ def ensure_demo_users():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    print(
-        "========================================"
-    )
-    print(
-        "FLYYY.AI STARTUP"
-    )
-    print(
-        "========================================"
-    )
+    print("========================================")
+    print("FLYYY.AI STARTUP")
+    print("========================================")
 
     # --------------------------------------------------------
-    # STEP 1: CREATE DATABASE TABLES
+    # STEP 1: DATABASES
     # --------------------------------------------------------
 
-    print(
-        "Initializing databases..."
-    )
+    print("Initializing databases...")
 
     init_all_databases()
 
@@ -268,7 +341,7 @@ async def lifespan(app: FastAPI):
     )
 
     # --------------------------------------------------------
-    # STEP 2: CREATE / UPDATE ALL DEMO USERS
+    # STEP 2: DEMONSTRATION USERS
     # --------------------------------------------------------
 
     print(
@@ -278,16 +351,12 @@ async def lifespan(app: FastAPI):
     ensure_demo_users()
 
     print(
-        "Demonstration account initialization completed."
+        "Demonstration accounts initialized successfully."
     )
 
-    print(
-        "FLYYY.AI STARTUP COMPLETE"
-    )
-
-    print(
-        "========================================"
-    )
+    print("========================================")
+    print("FLYYY.AI STARTUP COMPLETE")
+    print("========================================")
 
     yield
 
@@ -310,7 +379,7 @@ app = FastAPI(
 
 
 # ============================================================
-# CORS CONFIGURATION
+# CORS
 # ============================================================
 
 app.add_middleware(
