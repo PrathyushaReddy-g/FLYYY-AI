@@ -99,14 +99,14 @@ def ensure_admin_user():
         )
 
         # ----------------------------------------------------
-        # Create admin if it does not exist
+        # CREATE ADMIN IF IT DOES NOT EXIST
         # ----------------------------------------------------
         if admin is None:
 
             admin = User(
                 username="admin",
                 email="admin@flyyy.ai",
-                password_hash=pwd_context.hash("admin"),
+                hashed_password=pwd_context.hash("admin"),
                 role="ADMIN",
                 is_active=True,
             )
@@ -114,24 +114,30 @@ def ensure_admin_user():
             db.add(admin)
             db.commit()
 
-            print("DEFAULT ADMIN CREATED: admin")
+            print("DEFAULT ADMIN CREATED SUCCESSFULLY")
 
+        # ----------------------------------------------------
+        # UPDATE EXISTING ADMIN
+        # ----------------------------------------------------
         else:
-            # ------------------------------------------------
-            # Make sure the demo admin account can log in
-            # ------------------------------------------------
+
             admin.email = "admin@flyyy.ai"
-            admin.password_hash = pwd_context.hash("admin")
+            admin.hashed_password = pwd_context.hash("admin")
             admin.role = "ADMIN"
             admin.is_active = True
 
             db.commit()
 
-            print("DEFAULT ADMIN VERIFIED/UPDATED: admin")
+            print("DEFAULT ADMIN UPDATED SUCCESSFULLY")
 
     except Exception as exc:
         db.rollback()
-        print("ADMIN INITIALIZATION ERROR:", str(exc))
+
+        # Print the real error so Railway logs show the cause
+        print("ADMIN INITIALIZATION ERROR:", repr(exc))
+
+        # Do not silently ignore database/model errors
+        raise
 
     finally:
         db.close()
@@ -144,10 +150,10 @@ def ensure_admin_user():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    # First create all database tables
+    # Step 1: Create all database tables
     init_all_databases()
 
-    # Then ensure admin account exists
+    # Step 2: Create/update default administrator
     ensure_admin_user()
 
     yield
@@ -224,7 +230,7 @@ app.include_router(audit.router)
 app.include_router(export.router)
 app.include_router(dashboard.router)
 
-# Keep the existing health router as well.
+# Keep the existing health router as well
 app.include_router(health.router)
 
 
